@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CUDA=11.1.1
-FROM nvidia/cuda:${CUDA}-cudnn8-runtime-ubuntu18.04
+ARG CUDA=11.4.0
+FROM nvidia/cuda:${CUDA}-cudnn8-runtime-ubuntu20.04
 # FROM directive resets ARGS, so we specify again (the value is retained if
 # previously set).
 ARG CUDA
@@ -53,10 +53,10 @@ RUN wget -q -P /tmp \
 
 # Install conda packages.
 ENV PATH="/opt/conda/bin:$PATH"
+RUN conda install -c "nvidia/label/cuda-11.4.0" cuda-toolkit
 RUN conda install -qy conda==4.13.0 \
     && conda install -y -c conda-forge \
       openmm=7.7.0 \
-      cudatoolkit==${CUDA_VERSION} \
       pdbfixer \
       pip \
       python=3.8 \
@@ -72,7 +72,8 @@ RUN pip3 install --upgrade pip --no-cache-dir \
     && pip3 install --upgrade --no-cache-dir \
       jax==0.3.25 \
       jaxlib==0.3.25+cuda11.cudnn805 \
-      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
+      google-cloud-storage==2.9.0
 
 # Add SETUID bit to the ldconfig binary so that non-root users can run it.
 RUN chmod u+s /sbin/ldconfig.real
@@ -85,6 +86,6 @@ RUN chmod u+s /sbin/ldconfig.real
 WORKDIR /app/alphafold
 RUN echo $'#!/bin/bash\n\
 ldconfig\n\
-python /app/alphafold/run_alphafold.py "$@"' > /app/run_alphafold.sh \
+python /app/alphafold/run_af2_accipiter.py "$@"' > /app/run_alphafold.sh \
   && chmod +x /app/run_alphafold.sh
 ENTRYPOINT ["/app/run_alphafold.sh"]
