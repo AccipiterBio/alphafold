@@ -224,11 +224,9 @@ def predict_structure(
   """Predicts structure using AlphaFold for the given sequence."""
   logging.info('Predicting %s', fasta_name)
   timings = {}
-  if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
+
   msa_output_dir = os.path.join(output_dir, 'msas')
-  if not os.path.exists(msa_output_dir):
-    os.makedirs(msa_output_dir)
+  os.makedirs(msa_output_dir, exist_ok=True)
 
   is_multimer = isinstance(data_pipeline, pipeline_multimer.DataPipeline)
 
