@@ -178,37 +178,6 @@ def _jnp_to_np(output: Dict[str, Any]) -> Dict[str, Any]:
   return output
 
 
-def _save_confidence_json_file(
-    plddt: np.ndarray, output_dir: str, model_name: str
-) -> None:
-  confidence_json = confidence.confidence_json(plddt)
-
-  # Save the confidence json.
-  confidence_json_output_path = os.path.join(
-      output_dir, f'confidence_{model_name}.json'
-  )
-  with open(confidence_json_output_path, 'w') as f:
-    f.write(confidence_json)
-
-
-def _save_pae_json_file(
-    pae: np.ndarray, max_pae: float, output_dir: str, model_name: str
-) -> None:
-  """Check prediction result for PAE data and save to a JSON file if present.
-
-  Args:
-    pae: The n_res x n_res PAE array.
-    max_pae: The maximum possible PAE value.
-    output_dir: Directory to which files are saved.
-    model_name: Name of a model.
-  """
-  pae_json = confidence.pae_json(pae, max_pae)
-
-  # Save the PAE json.
-  pae_json_output_path = os.path.join(output_dir, f'pae_{model_name}.json')
-  with open(pae_json_output_path, 'w') as f:
-    f.write(pae_json)
-
 
 def predict_structure(
     fasta_path: str,
@@ -242,6 +211,7 @@ def predict_structure(
       print(f'loading features saved at {features_output_path}')
       with open(features_output_path, 'rb') as f:
           feature_dict = pickle.load(f)
+
   else:
       feature_dict = data_pipeline.process(
           input_fasta_path=fasta_path,
@@ -269,51 +239,52 @@ def predict_structure(
   num_models = len(model_runners)
   for model_index, (model_name, model_runner) in enumerate(
       model_runners.items()):
-    logging.info('Running model %s on %s', model_name, fasta_name)
-    t_0 = time.time()
+    
     model_random_seed = model_index + random_seed * num_models
     processed_feature_dict = model_runner.process_features(
         feature_dict, random_seed=model_random_seed)
-    timings[f'process_features_{model_name}'] = time.time() - t_0
-
-    t_0 = time.time()
-    prediction_result = model_runner.predict(processed_feature_dict,
-                                             random_seed=model_random_seed)
-    t_diff = time.time() - t_0
-    timings[f'predict_and_compile_{model_name}'] = t_diff
-    logging.info(
-        'Total JAX model %s on %s predict time (includes compilation time, see --benchmark): %.1fs',
-        model_name, fasta_name, t_diff)
-
-    if benchmark:
+        
+    result_output_path = os.path.join(output_dir, f'result_{model_name}.pkl')
+    # if path exist skip and load, else run model
+    if os.path.exists(result_output_path):
+      print(f'loading results saved at {result_output_path}')
+      with open(result_output_path, 'rb') as f:
+        prediction_result = pickle.load(f)
+    else:
+      logging.info('Running model %s on %s', model_name, fasta_name)
       t_0 = time.time()
-      model_runner.predict(processed_feature_dict,
-                           random_seed=model_random_seed)
+
+      timings[f'process_features_{model_name}'] = time.time() - t_0
+
+      t_0 = time.time()
+      prediction_result = model_runner.predict(processed_feature_dict,
+                                              random_seed=model_random_seed)
       t_diff = time.time() - t_0
-      timings[f'predict_benchmark_{model_name}'] = t_diff
+      timings[f'predict_and_compile_{model_name}'] = t_diff
       logging.info(
-          'Total JAX model %s on %s predict time (excludes compilation time): %.1fs',
+          'Total JAX model %s on %s predict time (includes compilation time, see --benchmark): %.1fs',
           model_name, fasta_name, t_diff)
 
+      if benchmark:
+        t_0 = time.time()
+        model_runner.predict(processed_feature_dict,
+                            random_seed=model_random_seed)
+        t_diff = time.time() - t_0
+        timings[f'predict_benchmark_{model_name}'] = t_diff
+        logging.info(
+            'Total JAX model %s on %s predict time (excludes compilation time): %.1fs',
+            model_name, fasta_name, t_diff)
+
+      # Remove jax dependency from results.
+      np_prediction_result = _jnp_to_np(dict(prediction_result))
+
+      # Save the model outputs.
+      with open(result_output_path, 'wb') as f:
+        pickle.dump(np_prediction_result, f, protocol=4)
+
     plddt = prediction_result['plddt']
-    _save_confidence_json_file(plddt, output_dir, model_name)
     ranking_confidences[model_name] = prediction_result['ranking_confidence']
 
-    if (
-        'predicted_aligned_error' in prediction_result
-        and 'max_predicted_aligned_error' in prediction_result
-    ):
-      pae = prediction_result['predicted_aligned_error']
-      max_pae = prediction_result['max_predicted_aligned_error']
-      _save_pae_json_file(pae, float(max_pae), output_dir, model_name)
-
-    # Remove jax dependency from results.
-    np_prediction_result = _jnp_to_np(dict(prediction_result))
-
-    # Save the model outputs.
-    result_output_path = os.path.join(output_dir, f'result_{model_name}.pkl')
-    with open(result_output_path, 'wb') as f:
-      pickle.dump(np_prediction_result, f, protocol=4)
 
     # Add the predicted LDDT in the b-factor column.
     # Note that higher predicted LDDT value means higher model confidence.
@@ -345,6 +316,14 @@ def predict_structure(
     to_relax = []
 
   for model_name in to_relax:
+    relaxed_output_path = os.path.join(
+        output_dir, f'relaxed_{model_name}.pdb')
+    
+    # skip if relaxed pdb already exists
+    if os.path.exists(relaxed_output_path):
+      print('Skipping relaxation, already exists at', relaxed_output_path)
+      continue
+
     t_0 = time.time()
     relaxed_pdb_str, _, violations = amber_relaxer.process(
         prot=unrelaxed_proteins[model_name])
@@ -357,8 +336,6 @@ def predict_structure(
     relaxed_pdbs[model_name] = relaxed_pdb_str
 
     # Save the relaxed PDB.
-    relaxed_output_path = os.path.join(
-        output_dir, f'relaxed_{model_name}.pdb')
     with open(relaxed_output_path, 'w') as f:
       f.write(relaxed_pdb_str)
 
