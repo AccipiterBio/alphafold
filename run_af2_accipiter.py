@@ -204,7 +204,7 @@ def predict_structure(
   features_output_path = os.path.join(output_dir, 'features.pkl')
 
   if os.path.exists(features_output_path):
-      print(f'loading features saved at {features_output_path}')
+      logging.info(f'loading features saved at {features_output_path}')
       with open(features_output_path, 'rb') as f:
           feature_dict = pickle.load(f)
     # load cached MSAs if available
@@ -226,7 +226,7 @@ def predict_structure(
   timings['features'] = time.time() - t_0
 
   if calc_only_features:
-    print(f'Calculating only features, saved at {features_output_path}')
+    logging.info(f'Calculating only features, saved at {features_output_path}')
     exit(0)
 
   unrelaxed_pdbs = {}
@@ -247,7 +247,7 @@ def predict_structure(
     result_output_path = os.path.join(output_dir, f'result_{model_name}.pkl')
     # if path exist skip and load, else run model
     if os.path.exists(result_output_path):
-      print(f'loading results saved at {result_output_path}')
+      logging.info(f'loading results saved at {result_output_path}')
       with open(result_output_path, 'rb') as f:
         prediction_result = pickle.load(f)
     else:
@@ -321,7 +321,7 @@ def predict_structure(
     
     # skip if relaxed pdb already exists
     if os.path.exists(relaxed_output_path):
-      print('Skipping relaxation, already exists at', relaxed_output_path)
+      logging.info('Skipping relaxation, already exists at', relaxed_output_path)
       continue
 
     t_0 = time.time()
