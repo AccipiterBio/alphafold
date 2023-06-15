@@ -199,10 +199,6 @@ def predict_structure(
 
   is_multimer = isinstance(data_pipeline, pipeline_multimer.DataPipeline)
 
-  # load cached MSAs if available
-  if is_multimer:
-    preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE)
-
   # Get features.
   t_0 = time.time()
   features_output_path = os.path.join(output_dir, 'features.pkl')
@@ -211,6 +207,10 @@ def predict_structure(
       print(f'loading features saved at {features_output_path}')
       with open(features_output_path, 'rb') as f:
           feature_dict = pickle.load(f)
+    # load cached MSAs if available
+  elif is_multimer:
+    preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE)
+
 
   else:
       feature_dict = data_pipeline.process(
