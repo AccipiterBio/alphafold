@@ -204,24 +204,27 @@ def predict_structure(
   features_output_path = os.path.join(output_dir, 'features.pkl')
 
   if os.path.exists(features_output_path):
-      logging.info(f'loading features saved at {features_output_path}')
-      with open(features_output_path, 'rb') as f:
-          feature_dict = pickle.load(f)
-    # load cached MSAs if available
-  elif is_multimer:
-    preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE)
-
-
+    logging.info(f'loading features saved at {features_output_path}')
+    with open(features_output_path, 'rb') as f:
+        feature_dict = pickle.load(f)
+  
   else:
-      feature_dict = data_pipeline.process(
-          input_fasta_path=fasta_path,
-          msa_output_dir=msa_output_dir)
-      # Upload data into the cache
-      if is_multimer:
-        upload_multimer_zipped_msa(msa_output_dir, MSA_CACHE)
       
-      with open(features_output_path, 'wb') as f:
-          pickle.dump(feature_dict, f, protocol=4)
+    # load cached MSAs if available
+    if is_multimer:
+      preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE)
+
+    # run the pipeline, if cached MSAs are available they will be used
+    feature_dict = data_pipeline.process(
+      input_fasta_path=fasta_path,
+      msa_output_dir=msa_output_dir)
+    
+    # Upload data into the cache
+    if is_multimer:
+      upload_multimer_zipped_msa(msa_output_dir, MSA_CACHE)
+    
+    with open(features_output_path, 'wb') as f:
+      pickle.dump(feature_dict, f, protocol=4)
 
   timings['features'] = time.time() - t_0
 
