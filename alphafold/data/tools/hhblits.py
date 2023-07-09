@@ -39,6 +39,7 @@ class HHBlits:
                n_iter: int = 3,
                e_value: float = 0.001,
                maxseq: int = 1_000_000,
+               maxres: int = 1_000_000,
                realign_max: int = 100_000,
                maxfilt: int = 100_000,
                min_prefilter_hits: int = 1000,
@@ -86,6 +87,7 @@ class HHBlits:
     self.n_iter = n_iter
     self.e_value = e_value
     self.maxseq = maxseq
+    self.maxres = maxres
     self.realign_max = realign_max
     self.maxfilt = maxfilt
     self.min_prefilter_hits = min_prefilter_hits
@@ -112,6 +114,7 @@ class HHBlits:
           '-n', str(self.n_iter),
           '-e', str(self.e_value),
           '-maxseq', str(self.maxseq),
+          '-maxres', str(self.maxres),
           '-realign_max', str(self.realign_max),
           '-maxfilt', str(self.maxfilt),
           '-min_prefilter_hits', str(self.min_prefilter_hits)]
