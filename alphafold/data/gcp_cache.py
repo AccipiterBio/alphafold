@@ -10,7 +10,7 @@ import shutil
 def cache_hash(input: str) -> str:
     return hashlib.sha256(input.encode()).hexdigest()
 
-def preload_multimer_cached_msas(input_fasta_path, msa_output_dir, cache_bucket='af2_cache') -> None:    
+def preload_multimer_cached_msas(input_fasta_path, msa_output_dir, cache_bucket='af2_cache', msa_gen_params="") -> None:    
     storage_client = storage.Client()
     bucket = storage_client.bucket(cache_bucket)
 
@@ -27,7 +27,7 @@ def preload_multimer_cached_msas(input_fasta_path, msa_output_dir, cache_bucket=
         json.dump(chain_id_map_dict, f, indent=4, sort_keys=True)
 
     for chain_id, seq in chain_id_map.items():
-        seq_hash = cache_hash(seq.sequence)
+        seq_hash = cache_hash(seq.sequence + msa_gen_params)
         remote_path = seq_hash + ".zip"
         blob = bucket.blob(remote_path)
         if blob.exists():
@@ -40,7 +40,7 @@ def preload_multimer_cached_msas(input_fasta_path, msa_output_dir, cache_bucket=
 
 
 
-def upload_multimer_zipped_msa(msa_output_dir, cache_bucket='af2_cache') -> None:
+def upload_multimer_zipped_msa(msa_output_dir, cache_bucket='af2_cache', msa_gen_params="") -> None:
     storage_client = storage.Client()
     bucket = storage_client.bucket(cache_bucket)
 
@@ -49,7 +49,7 @@ def upload_multimer_zipped_msa(msa_output_dir, cache_bucket='af2_cache') -> None
         chain_id_map_dict = json.load(f)
 
     for chain_id, chain_data in chain_id_map_dict.items():
-        seq_hash = cache_hash(chain_data['sequence']) 
+        seq_hash = cache_hash(chain_data['sequence'] + msa_gen_params) 
         remote_path = seq_hash + ".zip"
         blob = bucket.blob(remote_path)
 
