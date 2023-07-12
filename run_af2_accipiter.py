@@ -199,6 +199,7 @@ def predict_structure(
 
   is_multimer = isinstance(data_pipeline, pipeline_multimer.DataPipeline)
 
+  msa_gen_params = "reduced_dbs" if is_multimer and data_pipeline._monomer_data_pipeline._use_small_bfd else ""
   # Get features.
   t_0 = time.time()
   features_output_path = os.path.join(output_dir, 'features.pkl')
@@ -212,7 +213,7 @@ def predict_structure(
       
     # load cached MSAs if available
     if is_multimer:
-      preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE)
+      preload_multimer_cached_msas(fasta_path, msa_output_dir, MSA_CACHE, msa_gen_params)
 
     # run the pipeline, if cached MSAs are available they will be used
     feature_dict = data_pipeline.process(
@@ -221,7 +222,7 @@ def predict_structure(
     
     # Upload data into the cache
     if is_multimer:
-      upload_multimer_zipped_msa(msa_output_dir, MSA_CACHE)
+      upload_multimer_zipped_msa(msa_output_dir, MSA_CACHE, msa_gen_params)
     
     with open(features_output_path, 'wb') as f:
       pickle.dump(feature_dict, f, protocol=4)
