@@ -54,7 +54,7 @@ RUN wget -q -P /tmp \
 # Install conda packages.
 ENV PATH="/opt/conda/bin:$PATH"
 RUN conda install -c "nvidia/label/cuda-11.4.0" cuda-toolkit
-RUN conda install -qy conda==4.13.0 \
+RUN conda install -qy conda \
     && conda install -y -c conda-forge \
       openmm=7.7.0 \
       pdbfixer \
